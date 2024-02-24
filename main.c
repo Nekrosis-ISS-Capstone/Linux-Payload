@@ -41,14 +41,15 @@ void copyContents(char * fileName, char * suffix, char * username, char * passwo
 char * takeUsername(void);
 char * takePassword(void);
 char * cleanString(char * string);
-char * generateRandomSequence();
+void generateRandomSequence(char * buffer);
+char * replaceSpaces(char * string);
 
 // Globals:
 
 char * CADDRESS = "http://70.77.131.111:5677/instruction.txt";		// "http://192.168.0.200:5678/instruction.txt"
 char * USERNAMEADDRESS = "http://70.77.131.111:5677/username.txt"; 
 char * PASSWORDADDRESS = "http://70.77.131.111:5677/password.txt"; 
-char * BASEDIRECTORY = "/home/ezra/Semester3/Scripting/assignment6";
+char * BASEDIRECTORY = "/home/ezra/misCode";
 
 // Main function:
 
@@ -115,9 +116,15 @@ void copyContents(char * fileName, char * suffix, char * username, char * passwo
 	CURL * curl;
 	CURLcode res;
 
-	char * randomPrefix = generateRandomSequence();
+	suffix = replaceSpaces(suffix);
+	
+	char * randomPrefix = calloc(1024, 1);		// Calloc is crucial here as the randomPrefix buffer is wiped anew in every call to copyContents. This caused many problems during development.
+	if (randomPrefix == NULL) {
+		return;
+	}
+	generateRandomSequence(randomPrefix);		// Filling the newly zero-initialized memory block
 
-	printf("File: %s Random Prefix: %s\n", fileName, randomPrefix);
+	/*printf("File: %s Random Prefix: %s\n", fileName, randomPrefix);*/
 
 	FILE * srcFile;
 	struct stat fileInfo;
@@ -140,7 +147,7 @@ void copyContents(char * fileName, char * suffix, char * username, char * passwo
 
 		char * dstFileName = strcat(randomPrefix, suffix);
 
-		char prelimLink[1024] = "ftp://70.77.131.111:5678/";		// test:capstonepassword
+		char prelimLink[1024] = "ftp://70.77.131.111:5678/";
 		char * link = strcat(prelimLink, dstFileName);			// revert to suffix if this breaks
 
 		printf("LINK: %s\n", link);
@@ -258,21 +265,31 @@ char * cleanString(char * string) {
 	return string;
 }
 
-char * generateRandomSequence() {				// This will generate random sequences 9 characters in length
+void generateRandomSequence(char * buffer) {				// This will generate random sequences 9 characters in length
 
 	char alphaSet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-	char * sequence = malloc(9);
+	/*char * sequence = malloc(9);*/
 
 	srand(time(NULL));
 	/*int r = rand();*/
 
 	for (int i = 0; i < 9; i++) {
 		int key = rand() % (int)(sizeof(alphaSet) - 1);
-		sequence[i] = alphaSet[key];
+		buffer[i] = alphaSet[key];
 	}
 	
 	/*sequence[8] = '\0';*/
 
-	return sequence;
+	/*return sequence;*/
+}
+
+char * replaceSpaces(char * string) {
+
+	for (int i = 0; i < strlen(string); i++) {
+		if (string[i] == ' ' || string[i] == '-') {
+			string[i] = '_';
+		}
+	}
+	return string;
 }
