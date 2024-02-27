@@ -12,7 +12,7 @@
 
 /* COMPILATION: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast!
  * sudo apt install libcurl4-openssl-dev
- * gcc main.c -o main -lcurl
+ * gcc main.c -o main -s -lcurl
 */
 
 /* SUPPORTED DIRECTIVES:
