@@ -16,10 +16,12 @@
 */
 /* COMPILATION FOR WINDOWS:
  * 
- * gcc .\linux-main.c -o .\linux-main -IC:\curl\include\curl -LC:\curl\lib -lcurl
+ * gcc .\linux-main.c -o .\linux-main -IC:\curl\include\curl C:\curl\lib\libcurl.dll.a --static
  *	- obtain curl from the following link: https://curl.se/windows/
  *	- find the directory containing curl.h
- *	- specify that directory with the -I option and the lib directory with the -L option
+ *	- specify that directory with the -I option and then specify the location of the libcurl.dll.a file as shown.
+ *	- The libcurl-x64.dll file must also be in the same directory as the executable.
+ *	- The file path separator also needs to be made Windows appropriate ('\')
  * */
 /* SUPPORTED DIRECTIVES:
  * - COPY
