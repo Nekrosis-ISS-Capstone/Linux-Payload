@@ -14,7 +14,13 @@
  * sudo apt install libcurl4-openssl-dev
  * gcc main.c -o main -s -lcurl
 */
-
+/* COMPILATION FOR WINDOWS:
+ * 
+ * gcc .\linux-main.c -o .\linux-main -IC:\curl\include\curl -LC:\curl\lib -lcurl
+ *	- obtain curl from the following link: https://curl.se/windows/
+ *	- find the directory containing curl.h
+ *	- specify that directory with the -I option and the lib directory with the -L option
+ * */
 /* SUPPORTED DIRECTIVES:
  * - COPY
 */
