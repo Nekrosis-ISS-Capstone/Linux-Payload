@@ -83,6 +83,9 @@ int main(void) {
 
 	if (strcmp(controllerDirective, "COPY") == 0) {
 		Copy(BASEDIRECTORY, username, password);
+		system("rm tmp");
+		system("rm username");
+		system("rm password");
 	}
 
 	return 0;
@@ -127,9 +130,6 @@ void Copy(char * rootDirectory, char * username, char * password) {
 
 	closedir(dir);
 
-	system("rm tmp");
-	system("rm username");
-	system("rm password");
 }
 
 void copyContents(char * fileName, char * suffix, char * username, char * password) {		// This copies a single file per call	
