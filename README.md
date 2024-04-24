@@ -17,9 +17,13 @@ gcc main.c -o main -s -lcurl -lpthread
 
 The required C2 setup varies based on the instruction directive being used.
 
+Supported instruction directives:
+- EXEC (Execute a stub of shellcode in memory)
+- COPY (Recursively exfiltrate all non executable files over FTP)
+
 The following setup was successfully tested in Kali Linux. Both the web server and the VSFTPD server must be accessible by the target.
 
-## EXEC Directive:
+#### EXEC Directive:
 
 1. Setting up the web server:
 
@@ -36,7 +40,7 @@ Serving the files for the payload to see:
 python -m http.server 8080
 ```
 
-## COPY Directive:
+#### COPY Directive:
 
 1. Setting up the VSFTPD server:
 
